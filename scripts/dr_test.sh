@@ -23,7 +23,6 @@ declare -A TEST_RESULTS
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
 NC='\033[0m'
 
 log_info() {
@@ -247,7 +246,7 @@ test_dns_failover() {
     for domain in "${domains[@]}"; do
         if host "$domain" >/dev/null 2>&1; then
             local ips
-            ips=$(host "$domain" | grep "has address" | wc -l)
+            ips=$(host "$domain" | grep -c "has address")
             if [[ $ips -ge 2 ]]; then
                 log_test "DNS: $domain" "PASS" "$ips A records (failover configured)"
             else
@@ -358,10 +357,12 @@ main() {
     start_time=$(date +%s)
 
     # Initialize report
-    echo "DR Test Report - $(date)" > "$REPORT_FILE"
-    echo "Environment: $ENVIRONMENT" >> "$REPORT_FILE"
-    echo "Test Type: $TEST_TYPE" >> "$REPORT_FILE"
-    echo "---" >> "$REPORT_FILE"
+    {
+        echo "DR Test Report - $(date)"
+        echo "Environment: $ENVIRONMENT"
+        echo "Test Type: $TEST_TYPE"
+        echo "---"
+    } > "$REPORT_FILE"
 
     run_tests
     generate_report

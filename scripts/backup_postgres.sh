@@ -12,7 +12,7 @@ set -euo pipefail
 # Default values
 BACKUP_DIR="/tmp/postgres_backups"
 RETENTION_DAYS=30
-COMPRESSION="gzip"
+# Compression handled by gzip command
 ENCRYPT=false
 DRY_RUN=false
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -175,7 +175,8 @@ create_backup() {
 
 upload_to_s3() {
     local backup_file="$1"
-    local s3_path="s3://${S3_BUCKET}/postgres/${DB_NAME}/$(basename "$backup_file")"
+    local s3_path
+    s3_path="s3://${S3_BUCKET}/postgres/${DB_NAME}/$(basename "$backup_file")"
 
     if [[ "$DRY_RUN" == true ]]; then
         log_info "[DRY RUN] Would upload to: $s3_path"
@@ -204,7 +205,7 @@ cleanup_old_backups() {
     # S3 cleanup (if lifecycle rules not configured)
     if [[ -n "${S3_BUCKET:-}" ]]; then
         local cutoff_date
-        cutoff_date=$(date -d "-${RETENTION_DAYS} days" +%Y-%m-%d 2>/dev/null || date -v-${RETENTION_DAYS}d +%Y-%m-%d)
+        cutoff_date=$(date -d "-${RETENTION_DAYS} days" +%Y-%m-%d 2>/dev/null || date -v-"${RETENTION_DAYS}"d +%Y-%m-%d)
         
         aws s3 ls "s3://${S3_BUCKET}/postgres/${DB_NAME}/" 2>/dev/null | while read -r line; do
             local file_date
