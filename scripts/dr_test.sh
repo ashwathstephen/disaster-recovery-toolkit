@@ -16,8 +16,10 @@ NOTIFY_CHANNEL="slack"
 DRY_RUN=false
 REPORT_FILE="/tmp/dr_test_$(date +%Y%m%d_%H%M%S).log"
 
-# Test results
-declare -A TEST_RESULTS
+# Test results (bash 3.2 compatible)
+TESTS_PASSED=0
+TESTS_FAILED=0
+TESTS_SKIPPED=0
 
 # Colors
 RED='\033[0;31m'
@@ -50,11 +52,15 @@ log_test() {
     
     if [[ "$status" == "PASS" ]]; then
         echo -e "${GREEN}[PASS]${NC} $test_name"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    elif [[ "$status" == "SKIP" ]] || [[ "$status" == "WARN" ]]; then
+        echo -e "${YELLOW}[${status}]${NC} $test_name: $details"
+        TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
     else
         echo -e "${RED}[FAIL]${NC} $test_name: $details"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
-    TEST_RESULTS["$test_name"]="$status"
     echo "[$status] $test_name: $details" >> "$REPORT_FILE"
 }
 
@@ -261,19 +267,7 @@ test_dns_failover() {
 generate_report() {
     log_info "Generating DR test report..."
 
-    local total=0
-    local passed=0
-    local failed=0
-    local skipped=0
-
-    for test in "${!TEST_RESULTS[@]}"; do
-        total=$((total + 1))
-        case "${TEST_RESULTS[$test]}" in
-            PASS) passed=$((passed + 1)) ;;
-            FAIL) failed=$((failed + 1)) ;;
-            SKIP|WARN) skipped=$((skipped + 1)) ;;
-        esac
-    done
+    local total=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))
 
     echo ""
     echo "========================================="
@@ -281,9 +275,9 @@ generate_report() {
     echo "Environment: $ENVIRONMENT"
     echo "========================================="
     echo "Total Tests: $total"
-    echo "Passed: $passed"
-    echo "Failed: $failed"
-    echo "Skipped/Warnings: $skipped"
+    echo "Passed: $TESTS_PASSED"
+    echo "Failed: $TESTS_FAILED"
+    echo "Skipped/Warnings: $TESTS_SKIPPED"
     echo "========================================="
     echo ""
     echo "Detailed results saved to: $REPORT_FILE"
@@ -373,18 +367,10 @@ main() {
 
     log_info "DR tests completed in ${duration} seconds"
 
-    # Count results
-    local passed=0
-    local failed=0
-    for result in "${TEST_RESULTS[@]}"; do
-        [[ "$result" == "PASS" ]] && passed=$((passed + 1))
-        [[ "$result" == "FAIL" ]] && failed=$((failed + 1))
-    done
-
-    send_notification "complete" "$passed" "$failed"
+    send_notification "complete" "$TESTS_PASSED" "$TESTS_FAILED"
 
     # Exit with error if any tests failed
-    [[ $failed -eq 0 ]]
+    [[ $TESTS_FAILED -eq 0 ]]
 }
 
 main "$@"
