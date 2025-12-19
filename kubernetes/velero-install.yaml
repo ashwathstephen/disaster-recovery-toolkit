@@ -1,0 +1,86 @@
+# Velero Installation for Kubernetes Backup
+# Apply with: kubectl apply -f velero-install.yaml
+# Note: Requires Velero CLI and cloud provider credentials
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: velero
+  labels:
+    app.kubernetes.io/name: velero
+    app.kubernetes.io/component: backup
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: velero
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: velero
+  labels:
+    app.kubernetes.io/name: velero
+subjects:
+  - kind: ServiceAccount
+    name: velero
+    namespace: velero
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+# Schedule for daily backups
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-backup
+  namespace: velero
+spec:
+  schedule: "0 2 * * *"
+  template:
+    includedNamespaces:
+      - "*"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - velero
+    includedResources:
+      - "*"
+    excludedResources:
+      - events
+      - events.events.k8s.io
+    ttl: 720h
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    defaultVolumesToFsBackup: true
+    metadata:
+      labels:
+        backup-type: scheduled
+---
+# Schedule for weekly full backups
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: weekly-full-backup
+  namespace: velero
+spec:
+  schedule: "0 0 * * 0"
+  template:
+    includedNamespaces:
+      - "*"
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+    ttl: 2160h
+    storageLocation: default
+    volumeSnapshotLocations:
+      - default
+    defaultVolumesToFsBackup: true
+    metadata:
+      labels:
+        backup-type: weekly-full
+

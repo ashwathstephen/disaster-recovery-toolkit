@@ -1,0 +1,26 @@
+# Logs
+*.log
+logs/
+
+# Secrets
+*.pem
+*.key
+.env
+
+# Backups
+*.sql
+*.sql.gz
+*.dump
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Temp
+tmp/
+temp/
+
